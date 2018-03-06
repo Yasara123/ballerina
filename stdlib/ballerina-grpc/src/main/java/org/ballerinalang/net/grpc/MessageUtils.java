@@ -19,6 +19,7 @@ import com.google.protobuf.Descriptors;
 import io.grpc.Metadata;
 import io.grpc.stub.StreamObserver;
 import org.ballerinalang.bre.Context;
+import org.ballerinalang.connector.api.AnnAttrValue;
 import org.ballerinalang.connector.api.Annotation;
 import org.ballerinalang.connector.api.Service;
 import org.ballerinalang.model.values.BString;
@@ -39,14 +40,14 @@ import java.util.List;
  */
 public class MessageUtils {
     private static final String IO_EXCEPTION_OCCURED = "I/O exception occurred";
-
+    
     public static BValue[] getHeader(Context context, AbstractNativeFunction abstractNativeFunction) {
         String headerName = abstractNativeFunction.getStringArgument(context, 0);
         String headerValue = getHeaderValue(headerName);
-
+        
         return abstractNativeFunction.getBValues(new BString(headerValue));
     }
-
+    
     private static String getHeaderValue(String keyName) {
         String headerValue = null;
         if (MessageContext.isPresent()) {
@@ -60,12 +61,12 @@ public class MessageUtils {
                 headerValue = byteValues != null ? Base64.getEncoder().encodeToString(byteValues) : null;
             } else {
                 Metadata.Key<String> key = Metadata.Key.of(keyName, Metadata.ASCII_STRING_MARSHALLER);
-                headerValue =  messageContext.get(key);
+                headerValue = messageContext.get(key);
             }
         }
         return headerValue;
     }
-
+    
     public static StreamObserver<Message> getStreamObserver(BStruct struct) {
         Object observerObject = struct.getNativeData(MessageConstants.STREAM_OBSERVER);
         if (observerObject instanceof StreamObserver) {
@@ -73,7 +74,7 @@ public class MessageUtils {
         }
         return null;
     }
-
+    
     public static BStruct getServerConnectorError(Context context, Throwable throwable) {
         PackageInfo httpPackageInfo = context.getProgramFile()
                 .getPackageInfo(MessageConstants.PROTOCOL_PACKAGE_GRPC);
@@ -86,7 +87,7 @@ public class MessageUtils {
         }
         return httpConnectorError;
     }
-
+    
     /**
      * Returns wire type corresponding to the field descriptor type.
      * <p>
@@ -111,7 +112,7 @@ public class MessageUtils {
             return ServiceProtoConstants.MESSAGE_WIRE_TYPE;
         }
     }
-
+    
     /**
      * Check whether message object is an array.
      *
@@ -121,35 +122,55 @@ public class MessageUtils {
     static boolean isArray(Object object) {
         return object != null && object.getClass().isArray();
     }
-
+    
     public static Annotation getServiceConfigAnnotation(Service service, String pkgPath) {
         List<Annotation> annotationList = service.getAnnotationList(pkgPath, MessageConstants.ANN_NAME_CONFIG);
-
+        
         if (annotationList == null) {
             return null;
         }
-
+        
         if (annotationList.size() > 1) {
             throw new BallerinaException(
                     "multiple service configuration annotations found in service: " + service.getName());
         }
-
+        
         return annotationList.isEmpty() ? null : annotationList.get(0);
     }
-
+    
     public static Annotation getMessageListenerAnnotation(Service service, String pkgPath) {
         List<Annotation> annotationList = service.getAnnotationList(pkgPath, MessageConstants.ANN_MESSAGE_LISTENER);
-
+        
         if (annotationList == null) {
             return null;
         }
-
+        
         if (annotationList.size() > 1) {
             throw new BallerinaException(
                     "multiple service configuration annotations found in service: " + service.getName());
         }
-
+        
         return annotationList.isEmpty() ? null : annotationList.get(0);
+    }
+    
+    public static ServerSSLConfigs getSSLConfigs(Annotation serviceAnnotation) {
+        if (serviceAnnotation == null) {
+            return null;
+        }
+        AnnAttrValue keyCertChainFile = serviceAnnotation.getAnnAttrValue("keyCertChainFile");
+        AnnAttrValue keyFile = serviceAnnotation.getAnnAttrValue("serverKeyFile");
+        AnnAttrValue keyPassword = serviceAnnotation.getAnnAttrValue("keyPassword");
+        if (keyCertChainFile == null || keyFile == null) {
+            return null;
+        } else {
+            ServerSSLConfigs serverSSLConfigs = new ServerSSLConfigs(
+                    keyFile.getStringValue(),
+                    keyCertChainFile.getStringValue());
+            if (keyPassword != null) {
+                serverSSLConfigs.setKeyPassword(keyPassword.getStringValue());
+            }
+            return serverSSLConfigs;
+        }
     }
 /*    public static com.google.protobuf.Message generateProtoMessage(BStruct bValue, BStructType structType) {
         Message.Builder responseBuilder = Message.newBuilder(structType.getName());

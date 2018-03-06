@@ -13,7 +13,8 @@ public struct ClientConnection {
 @Description {value:"gRPC protobuf client connector for outbound gRPC requests"}
 @Param {value:"serviceUri: Url of the service"}
 @Param {value:"connectorOptions: connector options"}
-public connector GRPCConnector (string host, int port, string subType, string descriptorKey, map describtorMap) {
+public connector GRPCConnector (string host, int port, string subType, string descriptorKey, map describtorMap,
+                                Options options) {
     @Description {value:"The execute action implementation of the gRPC Connector."}
     @Param {value:"Connection stub."}
     @Param {value:"Any type of request parameters."}
@@ -98,4 +99,19 @@ public struct ServerError {
     string msg;
     error cause;
     int statusCode;
+}
+
+
+@Description { value:"SSL struct represents SSL/TLS options to be used for gRPC client invocation" }
+@Field {value:"trustStoreFile: File path to trust store file"}
+@Field {value:"trustStorePassword: Trust store password"}
+public struct SSL {
+    string trustCertFile;
+}
+
+@Description { value:"Options struct represents options to be used for gRPC client invocation" }
+@Field {value:"ssl: SSL/TLS related options"}
+@Field {value:"proxy: Proxy server related options"}
+public struct Options {
+    SSL ssl;
 }

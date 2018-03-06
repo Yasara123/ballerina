@@ -58,7 +58,10 @@ public class BallerinaGrpcServerConnector implements BallerinaServerConnector {
                 if (serviceAnnotation != null) {
                     serviceMap.put(service.getName(), service);
                 } else {
-                    servicesBuilder.registerService(service);
+                    Annotation serviceConfiguration =MessageUtils.getServiceConfigAnnotation(service, MessageConstants
+                            .PROTOCOL_PACKAGE_GRPC);
+                    ServerSSLConfigs serverSSLConfigs = MessageUtils.getSSLConfigs(serviceConfiguration);
+                    servicesBuilder.registerService(service,serverSSLConfigs);
                     serviceMap.put(service.getName(), service);
                 }
             } catch (GrpcServerException e) {
