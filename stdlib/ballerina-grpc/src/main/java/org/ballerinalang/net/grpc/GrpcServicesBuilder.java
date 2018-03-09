@@ -29,12 +29,10 @@ import io.grpc.protobuf.ProtoUtils;
 import io.grpc.stub.ServerCalls;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 import org.ballerinalang.connector.api.AnnAttrValue;
 import org.ballerinalang.connector.api.Annotation;
 import org.ballerinalang.connector.api.Resource;
 import org.ballerinalang.connector.api.Service;
-import org.ballerinalang.net.grpc.exception.GrpcSSLValidationException;
 import org.ballerinalang.net.grpc.exception.GrpcServerException;
 import org.ballerinalang.net.grpc.interceptor.ServerHeaderInterceptor;
 import org.ballerinalang.net.grpc.listener.BidirectionalStreamingListener;
@@ -44,11 +42,9 @@ import org.ballerinalang.net.grpc.listener.UnaryMethodListener;
 import org.ballerinalang.net.grpc.proto.ServiceProtoConstants;
 import org.ballerinalang.net.grpc.proto.ServiceProtoUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import javax.net.ssl.SSLException;
 
 import static org.ballerinalang.net.grpc.builder.BalGenConstants.FILE_SEPARATOR;
 
@@ -60,28 +56,10 @@ import static org.ballerinalang.net.grpc.builder.BalGenConstants.FILE_SEPARATOR;
 public class GrpcServicesBuilder {
     private io.grpc.ServerBuilder serverBuilder = null;
     
-    void registerService(Service service, ServerSSLConfigs serverSSLConfigs) throws GrpcServerException {
+    void registerService(Service service, SslContext sslContext) throws GrpcServerException {
         Annotation serviceAnnotation = MessageUtils.getServiceConfigAnnotation(service, MessageConstants
                 .PROTOCOL_PACKAGE_GRPC);
-        if (serverSSLConfigs != null) {
-            SslContext sslContext;
-            try {
-                if (serverSSLConfigs.getKeyPassword() == null) {
-                    sslContext = SslContextBuilder.forServer(
-                            new File(serverSSLConfigs.getKeyFile()),
-                            new File(serverSSLConfigs.getKeyCertChainFile()))
-                            .build();
-                } else {
-                    sslContext = SslContextBuilder.forServer(
-                            new File(serverSSLConfigs.getKeyFile()),
-                            new File(serverSSLConfigs.getKeyCertChainFile()),
-                            serverSSLConfigs.getKeyPassword())
-                            .build();
-                }
-            } catch (SSLException e) {
-                throw new GrpcSSLValidationException("Error while generating ssl context the service : " + service.getName()
-                        , e);
-            }
+        if (sslContext != null) {
             if (serviceAnnotation != null && serviceAnnotation.getAnnAttrValue("port") != null) {
                 serverBuilder = NettyServerBuilder.forPort((int)
                         serviceAnnotation.getAnnAttrValue("port").getIntValue())

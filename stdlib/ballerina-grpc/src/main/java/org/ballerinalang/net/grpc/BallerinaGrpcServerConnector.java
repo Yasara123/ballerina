@@ -24,11 +24,13 @@ import org.ballerinalang.connector.api.BallerinaConnectorException;
 import org.ballerinalang.connector.api.BallerinaServerConnector;
 import org.ballerinalang.connector.api.Service;
 import org.ballerinalang.net.grpc.exception.GrpcServerException;
+import org.ballerinalang.net.grpc.ssl.SSLHandlerFactory;
 
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import javax.net.ssl.SSLException;
 
 /**
  * This is the gRPC implementation for the {@code BallerinaServerConnector} API.
@@ -60,12 +62,14 @@ public class BallerinaGrpcServerConnector implements BallerinaServerConnector {
                 } else {
                     Annotation serviceConfiguration =MessageUtils.getServiceConfigAnnotation(service, MessageConstants
                             .PROTOCOL_PACKAGE_GRPC);
-                    ServerSSLConfigs serverSSLConfigs = MessageUtils.getSSLConfigs(serviceConfiguration);
-                    servicesBuilder.registerService(service,serverSSLConfigs);
+                    SSLHandlerFactory sslHandlerFactory = MessageUtils.getSSLConfigs(serviceConfiguration);
+                    servicesBuilder.registerService(service,sslHandlerFactory.createHttp2TLSContext());
                     serviceMap.put(service.getName(), service);
                 }
             } catch (GrpcServerException e) {
                 throw new BallerinaConnectorException("Error while registering the service : " + service.getName(), e);
+            } catch (SSLException e) {
+                e.printStackTrace();
             }
         }
     }

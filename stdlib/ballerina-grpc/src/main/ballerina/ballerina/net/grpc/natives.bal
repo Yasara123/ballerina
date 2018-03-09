@@ -106,7 +106,8 @@ public struct ServerError {
 @Field {value:"trustStoreFile: File path to trust store file"}
 @Field {value:"trustStorePassword: Trust store password"}
 public struct SSL {
-    string trustCertFile;
+    string trustStoreFile;
+    string trustStorePassword;
 }
 
 @Description { value:"Options struct represents options to be used for gRPC client invocation" }

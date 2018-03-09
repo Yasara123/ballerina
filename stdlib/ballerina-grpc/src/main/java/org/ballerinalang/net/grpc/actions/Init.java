@@ -20,8 +20,16 @@ package org.ballerinalang.net.grpc.actions;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.NettyChannelBuilder;
+import io.netty.handler.codec.http2.Http2SecurityUtil;
+import io.netty.handler.ssl.ApplicationProtocolConfig;
+import io.netty.handler.ssl.ApplicationProtocolNames;
+import io.netty.handler.ssl.ClientAuth;
+import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.ssl.SupportedCipherSuiteFilter;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import org.ballerinalang.bre.Context;
 import org.ballerinalang.connector.api.AbstractNativeAction;
 import org.ballerinalang.connector.api.BallerinaConnectorException;
@@ -35,14 +43,16 @@ import org.ballerinalang.nativeimpl.actions.ClientConnectorFuture;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.BallerinaAction;
 import org.ballerinalang.net.grpc.ClientConnectorFactory;
-import org.ballerinalang.net.grpc.ClientSSLConfigs;
 import org.ballerinalang.net.grpc.exception.GrpcClientException;
+import org.ballerinalang.net.grpc.ssl.SSLConfig;
+import org.ballerinalang.net.grpc.ssl.SSLHandlerFactory;
 import org.ballerinalang.net.grpc.stubs.GrpcBlockingStub;
 import org.ballerinalang.net.grpc.stubs.GrpcNonBlockingStub;
 import org.ballerinalang.net.grpc.stubs.ProtoFileDefinition;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import javax.net.ssl.SSLException;
 
@@ -96,13 +106,29 @@ public class Init extends AbstractNativeAction {
             }
             ProtoFileDefinition protoFileDefinition = new ProtoFileDefinition(depDescriptorData);
             protoFileDefinition.setRootDescriptorData(descriptorValue);
-            BStruct options = (BStruct) bConnector.getRefField(0);
-            ClientSSLConfigs clientSslConfigs;
+            BStruct options = (BStruct) bConnector.getRefField(1);
+            SSLConfig clientSslConfigs;
             ManagedChannel channel;
             if (options != null) {
                 clientSslConfigs = populateClientConfigurationOptions(options);
-                File certFile = new File(clientSslConfigs.getTrustStoreFile());
-                SslContext sslContext = SslContextBuilder.forClient().trustManager(certFile).build();
+                SSLHandlerFactory sslHandlerFactory = new SSLHandlerFactory(clientSslConfigs);
+                SslProvider provider = OpenSsl.isAlpnSupported() ? SslProvider.OPENSSL : SslProvider.JDK;
+                List<String> ciphers =  Http2SecurityUtil.CIPHERS;
+                SslContext sslContext = SslContextBuilder.forClient()
+                        .trustManager(sslHandlerFactory.getTrustStoreFactory())
+                        .sslProvider(provider)
+                        .ciphers(ciphers,
+                                SupportedCipherSuiteFilter.INSTANCE)
+                        .clientAuth(ClientAuth.NONE)
+                        .applicationProtocolConfig(new ApplicationProtocolConfig(
+                                ApplicationProtocolConfig.Protocol.ALPN,
+                                // NO_ADVERTISE is currently the only mode supported by both OpenSsl and JDK providers.
+                                ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
+                                // ACCEPT is currently the only mode supported by both OpenSsl and JDK providers.
+                                ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
+                                ApplicationProtocolNames.HTTP_2,
+                                ApplicationProtocolNames.HTTP_1_1))
+                        .build();
                 channel = NettyChannelBuilder.forAddress(host, port)
                         .sslContext(sslContext)
                         .usePlaintext(true)
@@ -137,14 +163,15 @@ public class Init extends AbstractNativeAction {
     }
     
     // TODO: 3/6/18 improve to support proxy
-    private ClientSSLConfigs populateClientConfigurationOptions(BStruct options) {
+    private SSLConfig populateClientConfigurationOptions(BStruct options) {
         if (options.getRefField(0) != null) {
-            ClientSSLConfigs clientSslConfigs = new ClientSSLConfigs();
+            SSLConfig clientSslConfigs = new SSLConfig(null, null).setCertPass(null);
             BStruct sslConfigStructs = (BStruct) options.getRefField(0);
-            clientSslConfigs.setTrustStoreFile(sslConfigStructs.getStringField(0));
+            clientSslConfigs.setTrustStore(new File(sslConfigStructs.getStringField(0)));
+            clientSslConfigs.setTrustStorePass(sslConfigStructs.getStringField(1));
             return clientSslConfigs;
         }
-        return new ClientSSLConfigs();
+        return new SSLConfig();
     }
     
     /**

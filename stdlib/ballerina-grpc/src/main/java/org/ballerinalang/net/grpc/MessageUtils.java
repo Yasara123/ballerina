@@ -27,10 +27,13 @@ import org.ballerinalang.model.values.BStruct;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.natives.AbstractNativeFunction;
 import org.ballerinalang.net.grpc.proto.ServiceProtoConstants;
+import org.ballerinalang.net.grpc.ssl.SSLConfig;
+import org.ballerinalang.net.grpc.ssl.SSLHandlerFactory;
 import org.ballerinalang.util.codegen.PackageInfo;
 import org.ballerinalang.util.codegen.StructInfo;
 import org.ballerinalang.util.exceptions.BallerinaException;
 
+import java.io.File;
 import java.util.Base64;
 import java.util.List;
 
@@ -153,23 +156,22 @@ public class MessageUtils {
         return annotationList.isEmpty() ? null : annotationList.get(0);
     }
     
-    public static ServerSSLConfigs getSSLConfigs(Annotation serviceAnnotation) {
+    public static SSLHandlerFactory getSSLConfigs(Annotation serviceAnnotation) {
         if (serviceAnnotation == null) {
             return null;
         }
-        AnnAttrValue keyCertChainFile = serviceAnnotation.getAnnAttrValue("keyCertChainFile");
-        AnnAttrValue keyFile = serviceAnnotation.getAnnAttrValue("serverKeyFile");
-        AnnAttrValue keyPassword = serviceAnnotation.getAnnAttrValue("keyPassword");
-        if (keyCertChainFile == null || keyFile == null) {
+        AnnAttrValue keyStoreFile = serviceAnnotation.getAnnAttrValue("keyStoreFile");
+        AnnAttrValue keyStorePassword = serviceAnnotation.getAnnAttrValue("keyStorePassword");
+        AnnAttrValue certPassword = serviceAnnotation.getAnnAttrValue("certPassword");
+        if (keyStoreFile == null || certPassword == null) {
             return null;
         } else {
-            ServerSSLConfigs serverSSLConfigs = new ServerSSLConfigs(
-                    keyFile.getStringValue(),
-                    keyCertChainFile.getStringValue());
-            if (keyPassword != null) {
-                serverSSLConfigs.setKeyPassword(keyPassword.getStringValue());
-            }
-            return serverSSLConfigs;
+            SSLConfig sslConfig = new SSLConfig(new File(keyStoreFile.getStringValue())
+                    ,keyStorePassword.getStringValue());
+            sslConfig.setCertPass(certPassword.getStringValue());
+            sslConfig.setTLSStoreType("PKCS12");
+            SSLHandlerFactory sslHandlerFactory = new SSLHandlerFactory(sslConfig);
+            return sslHandlerFactory;
         }
     }
 /*    public static com.google.protobuf.Message generateProtoMessage(BStruct bValue, BStructType structType) {

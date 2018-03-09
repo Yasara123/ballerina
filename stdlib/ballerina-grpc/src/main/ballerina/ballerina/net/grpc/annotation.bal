@@ -17,9 +17,9 @@ public annotation serviceConfig attach service {
     string rpcEndpoint;
     boolean clientStreaming;
     boolean serverStreaming;
-    string keyCertChainFile;
-    string keyFile;
-    string keyPassword;
+    string keyStoreFile;
+    string keyStorePassword;
+    string certPassword;
 }
 
 @Description { value:"Identify the service as server message listener"}
