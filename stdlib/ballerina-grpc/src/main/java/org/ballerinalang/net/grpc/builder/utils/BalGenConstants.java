@@ -47,5 +47,7 @@ public class BalGenConstants {
     
     public static final String PACKAGE_SEPARATOR = ".";
     
+    public static final String EMPTY_DATATYPE_NAME = "Empty";
+    
     public static final String PACKAGE_SEPARATOR_REGEX = "\\.";
 }

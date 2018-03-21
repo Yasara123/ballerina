@@ -40,6 +40,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.ballerinalang.net.grpc.builder.utils.BalGenConstants.EMPTY_DATATYPE_NAME;
 import static org.ballerinalang.net.grpc.builder.utils.BalGenConstants.EMPTY_STRING;
 import static org.ballerinalang.net.grpc.builder.utils.BalGenConstants.FILE_SEPARATOR;
 import static org.ballerinalang.net.grpc.builder.utils.BalGenConstants.PACKAGE_SEPARATOR;
@@ -118,6 +119,9 @@ public class BallerinaFileBuilder {
                 }
                 reqMessageName = getMappingBalType(typeIn);
                 resMessageName = getMappingBalType(typeOut);
+                if (EMPTY_DATATYPE_NAME.equals(reqMessageName) || EMPTY_DATATYPE_NAME.equals(reqMessageName)) {
+                    clientStubBal.addStruct(EMPTY_DATATYPE_NAME, new String[0], new String[0]);
+                }
                 ActionBuilder.build(methodName, reqMessageName, resMessageName
                         , methodID, methodType, clientStubBal);
             }
